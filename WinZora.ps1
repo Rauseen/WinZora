@@ -9,32 +9,61 @@ Write-Host "====================================================================
 Write-Host "                     WINZORA ISO BUILDER v1.0                                " -ForegroundColor Yellow
 Write-Host "==============================================================================" -ForegroundColor Cyan
 
+# 1. SELECT ISO FILE VIA GRAPHICAL DIALOG
+Write-Host "[+] Please select your Windows 11 ISO file from the popup window..." -ForegroundColor Green
+Add-Type -AssemblyName System.Windows.Forms
+$OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+$OpenFileDialog.Filter = "ISO Files (*.iso)|*.iso"
+$OpenFileDialog.Title = "Select Windows 11 ISO File"
+
+if ($OpenFileDialog.ShowDialog() -eq "OK") {
+    $SourceISO =$OpenFileDialog.FileName
+    Write-Host "[+] Selected ISO: $SourceISO" -ForegroundColor Cyan
+} else {
+    Write-Host "[-] No ISO selected. Exiting." -ForegroundColor Red
+    Exit
+}
+
 # Paths & Variables
 $WorkDir     = "C:\WinZora"
 $ISO_Path    = "C:\ISO"
 $Final_ISO   = "C:\WinZora.iso"
-$OscdimgPath = "C:\WinZora\oscdimg.exe"
+$OscdimgPath = "$WorkDir\oscdimg.exe"
 
 $OscdimgUrl  = "https://raw.githubusercontent.com/Rauseen/WinZora/main/oscdimg.exe"
 $UnattendUrl = "https://raw.githubusercontent.com/Rauseen/WinZora/main/autounattend.xml"
 
 # Setup Workspace & Download Required Tools
-Write-Host "[+] Preparing workspace ($WorkDir)..." -ForegroundColor Green
 if (-not (Test-Path -Path $WorkDir)) { 
     New-Item -ItemType Directory -Path $WorkDir | Out-Null 
 }
 
 if (-not (Test-Path -Path $OscdimgPath)) {
     Write-Host "[+] Downloading Oscdimg tool..." -ForegroundColor Cyan
-    Invoke-WebRequest -Uri $OscdimgUrl -OutFile $OscdimgPath -UseBasicParsing
+    Invoke-WebRequest -Uri $OscdimgUrl -OutFile$OscdimgPath -UseBasicParsing
 }
 
-# Inject autounattend.xml into ISO Folder
-Write-Host "[+] Injecting autounattend.xml into ISO directory..." -ForegroundColor Green
+# 2. MOUNT ISO & COPY CONTENTS
+Write-Host "[+] Mounting selected ISO..." -ForegroundColor Cyan
+$Mounted = Mount-DiskImage -ImagePath$SourceISO -PassThru
+$DriveLetter = ($Mounted | Get-Volume).DriveLetter + ":"
+
+Write-Host "[+] Copying ISO contents to working directory ($ISO_Path)..." -ForegroundColor Cyan
+if (-not (Test-Path -Path $ISO_Path)) { 
+    New-Item -ItemType Directory -Path $ISO_Path | Out-Null 
+}
+Copy-Item -Path "$DriveLetter\*" -Destination $ISO_Path -Recurse -Force
+Get-ChildItem -Path $ISO_Path -Recurse \vert{} ForEach-Object {$_.Attributes = 'Normal' }
+
+# Unmount original ISO
+Dismount-DiskImage -ImagePath $SourceISO | Out-Null
+
+# 3. INJECT AUTOUNATTEND.XML
+Write-Host "[+] Injecting autounattend.xml..." -ForegroundColor Green
 Invoke-WebRequest -Uri $UnattendUrl -OutFile "$ISO_Path\autounattend.xml" -UseBasicParsing
 
-# Cleanup ISO Unnecessary Files & Folders
-Write-Host "`n[+] Cleaning unnecessary folders from ISO..." -ForegroundColor Green
+# 4. CLEANUP UNNECESSARY FOLDERS
+Write-Host "[+] Cleaning unnecessary folders..." -ForegroundColor Green
 $TrashFolders = @(
     "$ISO_Path\support",
     "$ISO_Path\sources\asz",
@@ -58,13 +87,13 @@ if (Test-Path -Path "$ISO_Path\__chunk_data") {
     Remove-Item -Path "$ISO_Path\__chunk_data" -Force -ErrorAction SilentlyContinue 
 }
 
-# Build Bootable ISO Image
-Write-Host "`n[+] Building bootable ISO ($Final_ISO)..." -ForegroundColor Yellow
+# 5. BUILD ISO
+Write-Host "[+] Building bootable ISO ($Final_ISO)..." -ForegroundColor Yellow
 $OscdimgArgs = "-m -o -u2 -udfver102 -bootdata:2#p0,e,b`"$ISO_Path\boot\etfsboot.com`"#pEF,e,b`"$ISO_Path\efi\microsoft\boot\efisys.bin`" `"$ISO_Path`" `"$Final_ISO`""
-Start-Process -FilePath $OscdimgPath -ArgumentList $OscdimgArgs -Wait -NoNewWindow
+Start-Process -FilePath $OscdimgPath -ArgumentList$OscdimgArgs -Wait -NoNewWindow
 
-# Cleanup Temp Directories
-Write-Host "`n[+] Cleaning up temporary files..." -ForegroundColor Red
+# 6. FINAL CLEANUP
+Write-Host "[+] Cleaning up temporary files..." -ForegroundColor Red
 if (Test-Path -Path $ISO_Path) { 
     Remove-Item -Path $ISO_Path -Recurse -Force -ErrorAction SilentlyContinue 
 }
