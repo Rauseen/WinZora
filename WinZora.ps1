@@ -6,24 +6,25 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 
 Clear-Host
 Write-Host "==============================================================================" -ForegroundColor Cyan
-Write-Host "                                    WINZORA                                   " -ForegroundColor Yellow
+Write-Host "                     WINZORA ISO BUILDER v1.0                                " -ForegroundColor Yellow
 Write-Host "==============================================================================" -ForegroundColor Cyan
 
 # Paths & Variables
-$WorkDir      = "C:\WinZora"
-$ISO_Path     = "C:\ISO"
-$Final_ISO    = "C:\WinZora.iso"
-$OscdimgPath  = "$WorkDir\oscdimg.exe"
+$WorkDir     = "C:\WinZora"
+$ISO_Path    = "C:\ISO"
+$Final_ISO   = "C:\WinZora.iso"
+$OscdimgPath = "C:\WinZora\oscdimg.exe"
 
-# Direct raw links from repository root
-$OscdimgUrl   = "https://raw.githubusercontent.com/Rauseen/WinZora/main/oscdimg.exe"
-$UnattendUrl  = "https://raw.githubusercontent.com/Rauseen/WinZora/main/autounattend.xml"
+$OscdimgUrl  = "https://raw.githubusercontent.com/Rauseen/WinZora/main/oscdimg.exe"
+$UnattendUrl = "https://raw.githubusercontent.com/Rauseen/WinZora/main/autounattend.xml"
 
 # Setup Workspace & Download Required Tools
 Write-Host "[+] Preparing workspace ($WorkDir)..." -ForegroundColor Green
-if (!(Test-Path $WorkDir)) { New-Item -ItemType Directory -Path $WorkDir | Out-Null }
+if (-not (Test-Path -Path $WorkDir)) { 
+    New-Item -ItemType Directory -Path $WorkDir | Out-Null 
+}
 
-if (!(Test-Path $OscdimgPath)) {
+if (-not (Test-Path -Path $OscdimgPath)) {
     Write-Host "[+] Downloading Oscdimg tool..." -ForegroundColor Cyan
     Invoke-WebRequest -Uri $OscdimgUrl -OutFile $OscdimgPath -UseBasicParsing
 }
@@ -36,14 +37,26 @@ Invoke-WebRequest -Uri $UnattendUrl -OutFile "$ISO_Path\autounattend.xml" -UseBa
 Write-Host "`n[+] Cleaning unnecessary folders from ISO..." -ForegroundColor Green
 $TrashFolders = @(
     "$ISO_Path\support",
-    "$ISO_Path\sources\asz", "$ISO_Path\sources\tdb", "$ISO_Path\sources\uup",
-    "$ISO_Path\sources\_manifest", "$ISO_Path\sources\ca-es", "$ISO_Path\sources\eu-es",
-    "$ISO_Path\sources\gl-es", "$ISO_Path\sources\id-id", "$ISO_Path\sources\vi-vn"
+    "$ISO_Path\sources\asz",
+    "$ISO_Path\sources\tdb",
+    "$ISO_Path\sources\uup",
+    "$ISO_Path\sources\_manifest",
+    "$ISO_Path\sources\ca-es",
+    "$ISO_Path\sources\eu-es",
+    "$ISO_Path\sources\gl-es",
+    "$ISO_Path\sources\id-id",
+    "$ISO_Path\sources\vi-vn"
 )
-foreach ($Folder in$TrashFolders) {
-    if (Test-Path $Folder) { Remove-Item -Path$Folder -Recurse -Force -ErrorAction SilentlyContinue }
+
+$TrashFolders | ForEach-Object {
+    if (Test-Path -Path $_) { 
+        Remove-Item -Path $_ -Recurse -Force -ErrorAction SilentlyContinue 
+    }
 }
-if (Test-Path "$ISO_Path\__chunk_data") { Remove-Item -Path "$ISO_Path\__chunk_data" -Force }
+
+if (Test-Path -Path "$ISO_Path\__chunk_data") { 
+    Remove-Item -Path "$ISO_Path\__chunk_data" -Force -ErrorAction SilentlyContinue 
+}
 
 # Build Bootable ISO Image
 Write-Host "`n[+] Building bootable ISO ($Final_ISO)..." -ForegroundColor Yellow
@@ -52,8 +65,12 @@ Start-Process -FilePath $OscdimgPath -ArgumentList $OscdimgArgs -Wait -NoNewWind
 
 # Cleanup Temp Directories
 Write-Host "`n[+] Cleaning up temporary files..." -ForegroundColor Red
-if (Test-Path $ISO_Path) { Remove-Item -Path$ISO_Path -Recurse -Force -ErrorAction SilentlyContinue }
-if (Test-Path $WorkDir)  { Remove-Item -Path$WorkDir -Recurse -Force -ErrorAction SilentlyContinue }
+if (Test-Path -Path $ISO_Path) { 
+    Remove-Item -Path $ISO_Path -Recurse -Force -ErrorAction SilentlyContinue 
+}
+if (Test-Path -Path $WorkDir) { 
+    Remove-Item -Path $WorkDir -Recurse -Force -ErrorAction SilentlyContinue 
+}
 
 Write-Host "==============================================================================" -ForegroundColor Cyan
 Write-Host " [SUCCESS] WinZora ISO Created Successfully: $Final_ISO" -ForegroundColor Green
