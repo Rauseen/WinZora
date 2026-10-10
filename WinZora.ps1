@@ -6,7 +6,7 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 
 Clear-Host
 Write-Host "==============================================================================" -ForegroundColor Cyan
-Write-Host "                     WINZORA ISO BUILDER v1.0                                " -ForegroundColor Yellow
+Write-Host "                                    WINZORA                                   " -ForegroundColor Yellow
 Write-Host "==============================================================================" -ForegroundColor Cyan
 
 # Paths & Variables
